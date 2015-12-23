@@ -82,22 +82,56 @@ Gitlab.sudo = 'other_user'
 # disable a sudo mode
 Gitlab.sudo = nil
 # => nil
+
+# a paginated response
+projects = Gitlab.projects(per_page: 5)
+
+# check existence of the next page
+projects.has_next_page?
+
+# retrieve the next page
+projects.next_page
+
+# iterate all projects
+projects.auto_paginate do |project|
+  # do something
+end
+
+# retrieve all projects as an array
+projects.auto_paginate
 ```
 
 For more information, refer to [documentation](http://rubydoc.info/gems/gitlab/frames).
 
 ## CLI
 
+It is possible to use this gem as a command line interface to gitlab. In order to make that work you need to set a few environment variables:
+```sh
+export GITLAB_API_ENDPOINT=https://gitlab.yourcompany.com/api/v3
+export GITLAB_API_PRIVATE_TOKEN=<your private token from /profile/account>
+# This one is optional and can be used to set any HTTParty option you may need
+# using YAML hash syntax. For example, this is how you would disable SSL
+# verification (useful if using a self-signed cert).
+export GITLAB_API_HTTPARTY_OPTIONS="{verify: false}"
+```
+
+Usage:
+
+When you want to know which CLI commands are supported, take a look at the client [commands implemented in this gem](http://www.rubydoc.info/gems/gitlab/3.4.0/Gitlab/Client). Any of those methods can be called as a command by passing the parameters of the commands as parameters of the CLI.
+
 Usage examples:
 
 ```sh
 # list users
+# see: http://www.rubydoc.info/gems/gitlab/3.4.0/Gitlab/Client/Users#users-instance_method
 gitlab users
 
 # get current user
+# see: http://www.rubydoc.info/gems/gitlab/3.4.0/Gitlab/Client/Users#user-instance_method
 gitlab user
 
 # get a user
+# see: http://www.rubydoc.info/gems/gitlab/3.4.0/Gitlab/Client/Users#user-instance_method
 gitlab user 2
 
 # filter output
@@ -105,7 +139,11 @@ gitlab user --only=id,username
 
 gitlab user --except=email,bio
 
+# get a user and render result as json
+gitlab user 2 --json
+
 # passing options hash to a command (use YAML)
+# see: http://www.rubydoc.info/gems/gitlab/3.4.0/Gitlab/Client/MergeRequests#create_merge_request-instance_method
 gitlab create_merge_request 4 "New merge request" "{source_branch: 'new_branch', target_branch: 'master', assignee_id: 42}"
 
 ```

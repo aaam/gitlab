@@ -1,4 +1,5 @@
 require 'spec_helper'
+require 'json'
 
 describe Gitlab::CLI do
   describe ".run" do
@@ -42,6 +43,23 @@ describe Gitlab::CLI do
         expect(@output).to include('John Smith')
       end
     end
+
+    context "when command is users" do
+      before do
+        stub_get("/users", "users")
+        @output = capture_output { Gitlab::CLI.run('users') }
+      end
+
+      it "should show executed command" do
+        expect(@output).to include('Gitlab.users')
+      end
+
+      it "should show users data" do
+        expect(@output).to include('name')
+        expect(@output).to include('John Smith')
+        expect(@output).to include('Jack Smith')
+      end
+    end
   end
 
   describe ".start" do
@@ -56,6 +74,19 @@ describe Gitlab::CLI do
         expect(@output).to_not include('John Smith')
         expect(@output).to include('bio')
         expect(@output).to include('created_at')
+      end
+    end
+
+    context "when command with json output" do
+      before do
+        stub_get("/user", "user")
+        args = ['user', '--json']
+        @output = capture_output { Gitlab::CLI.start(args) }
+      end
+
+      it "should render output as json" do
+        expect(JSON.parse(@output)['result']).to eq(JSON.parse(File.read(File.dirname(__FILE__) + '/../fixtures/user.json')))
+        expect(JSON.parse(@output)['cmd']).to eq('Gitlab.user')
       end
     end
 

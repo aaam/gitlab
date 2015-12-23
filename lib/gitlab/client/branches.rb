@@ -13,7 +13,7 @@ class Gitlab::Client
     # @option options [Integer] :per_page The number of results per page.
     # @return [Array<Gitlab::ObjectifiedHash>]
     def branches(project, options={})
-      get("/projects/#{project}/repository/branches", :query => options)
+      get("/projects/#{project}/repository/branches", query: options)
     end
     alias_method :repo_branches, :branches
 
@@ -29,7 +29,6 @@ class Gitlab::Client
     def branch(project, branch)
       get("/projects/#{project}/repository/branches/#{branch}")
     end
-
     alias_method :repo_branch, :branch
 
     # Protects a repository branch.
@@ -71,7 +70,7 @@ class Gitlab::Client
     # @param  [String] ref Create branch from commit sha or existing branch
     # @return [Gitlab::ObjectifiedHash]
     def create_branch(project, branch, ref)
-      post("/projects/#{project}/repository/branches",:body => {:branch_name => branch, :ref => ref})
+      post("/projects/#{project}/repository/branches", body: { branch_name: branch, ref: ref })
     end
     alias_method :repo_create_branch, :create_branch
 
@@ -88,7 +87,5 @@ class Gitlab::Client
       delete("/projects/#{project}/repository/branches/#{branch}")
     end
     alias_method :repo_delete_branch, :delete_branch
-
   end
 end
-

@@ -1,6 +1,8 @@
 require 'spec_helper'
 
 describe Gitlab::Client do
+  it { should respond_to :search_projects }
+
   describe ".projects" do
     before do
       stub_get("/projects", "projects")
@@ -11,8 +13,8 @@ describe Gitlab::Client do
       expect(a_get("/projects")).to have_been_made
     end
 
-    it "should return an array of projects" do
-      expect(@projects).to be_an Array
+    it "should return a paginated response of projects" do
+      expect(@projects).to be_a Gitlab::PaginatedResponse
       expect(@projects.first.name).to eq("Brute")
       expect(@projects.first.owner.name).to eq("John Smith")
     end
@@ -28,12 +30,11 @@ describe Gitlab::Client do
       expect(a_get("/projects/search/Gitlab")).to have_been_made
     end
 
-    it "should return an array of projects found" do
-      expect(@project_search).to be_an Array
+    it "should return a paginated response of projects found" do
+      expect(@project_search).to be_a Gitlab::PaginatedResponse
       expect(@project_search.first.name).to eq("Gitlab")
       expect(@project_search.first.owner.name).to eq("John Smith")
     end
-
   end
 
   describe ".project" do
@@ -62,8 +63,8 @@ describe Gitlab::Client do
       expect(a_get("/projects/2/events")).to have_been_made
     end
 
-    it "should return an array of events" do
-      expect(@events).to be_an Array
+    it "should return a paginated response of events" do
+      expect(@events).to be_a Gitlab::PaginatedResponse
       expect(@events.size).to eq(2)
     end
 
@@ -91,9 +92,9 @@ describe Gitlab::Client do
   describe ".create_project for user" do
     before do
       stub_post("/users", "user")
-      @owner = Gitlab.create_user("john@example.com", "pass", {name: 'John Owner'})
+      @owner = Gitlab.create_user("john@example.com", "pass", name: 'John Owner')
       stub_post("/projects/user/#{@owner.id}", "project_for_user")
-      @project = Gitlab.create_project('Brute', {:user_id => @owner.id})
+      @project = Gitlab.create_project('Brute', user_id: @owner.id)
     end
 
     it "should return information about a created project" do
@@ -119,18 +120,38 @@ describe Gitlab::Client do
   end
 
   describe ".create_fork" do
-    before do
-      stub_post("/projects/fork/3", "project_fork")
-      @project = Gitlab.create_fork(3)
+    context "without sudo option" do
+      before do
+        stub_post("/projects/fork/3", "project_fork")
+        @project = Gitlab.create_fork(3)
+      end
+
+      it "should post to the correct resource" do
+        expect(a_post("/projects/fork/3")).to have_been_made
+      end
+
+      it "should return information about the forked project" do
+        expect(@project.forked_from_project.id).to eq(3)
+        expect(@project.id).to eq(20)
+      end
     end
 
-    it "should get the correct resource" do
-      expect(a_post("/projects/fork/3")).to have_been_made
-    end
+    context "with the sudo option" do
+      before do
+        stub_post("/projects/fork/3", "project_forked_for_user")
+        @sudoed_username = 'jack.smith'
+        @project = Gitlab.create_fork(3, sudo: @sudoed_username)
+      end
 
-    it "should return information about the forked project" do
-      expect(@project.forked_from_project.id).to eq(3)
-      expect(@project.id).to eq(20)
+      it "should post to the correct resource" do
+        expect(a_post("/projects/fork/3")).to have_been_made
+      end
+
+      it "should return information about the forked project" do
+        expect(@project.forked_from_project.id).to eq(3)
+        expect(@project.id).to eq(20)
+        expect(@project.owner.username).to eq(@sudoed_username)
+      end
     end
   end
 
@@ -144,8 +165,8 @@ describe Gitlab::Client do
       expect(a_get("/projects/3/members")).to have_been_made
     end
 
-    it "should return an array of team members" do
-      expect(@team_members).to be_an Array
+    it "should return a paginated response of team members" do
+      expect(@team_members).to be_a Gitlab::PaginatedResponse
       expect(@team_members.first.name).to eq("John Smith")
     end
   end
@@ -173,7 +194,7 @@ describe Gitlab::Client do
 
     it "should get the correct resource" do
       expect(a_post("/projects/3/members").
-          with(:body => {:user_id => '1', :access_level => '40'})).to have_been_made
+          with(body: { user_id: '1', access_level: '40' })).to have_been_made
     end
 
     it "should return information about an added team member" do
@@ -189,7 +210,7 @@ describe Gitlab::Client do
 
     it "should get the correct resource" do
       expect(a_put("/projects/3/members/1").
-          with(:body => {:access_level => '40'})).to have_been_made
+          with(body: { access_level: '40' })).to have_been_made
     end
 
     it "should return information about an edited team member" do
@@ -222,8 +243,8 @@ describe Gitlab::Client do
       expect(a_get("/projects/1/hooks")).to have_been_made
     end
 
-    it "should return an array of hooks" do
-      expect(@hooks).to be_an Array
+    it "should return a paginated response of hooks" do
+      expect(@hooks).to be_a Gitlab::PaginatedResponse
       expect(@hooks.first.url).to eq("https://api.example.net/v1/webhooks/ci")
     end
   end
@@ -251,8 +272,8 @@ describe Gitlab::Client do
       end
 
       it "should get the correct resource" do
-        body = {:url => "https://api.example.net/v1/webhooks/ci"}
-        expect(a_post("/projects/1/hooks").with(:body => body)).to have_been_made
+        body = { url: "https://api.example.net/v1/webhooks/ci" }
+        expect(a_post("/projects/1/hooks").with(body: body)).to have_been_made
       end
 
       it "should return information about an added hook" do
@@ -267,8 +288,8 @@ describe Gitlab::Client do
       end
 
       it "should get the correct resource" do
-        body = {:url => "https://api.example.net/v1/webhooks/ci", push_events: "true", merge_requests_events: "true"}
-        expect(a_post("/projects/1/hooks").with(:body => body)).to have_been_made
+        body = { url: "https://api.example.net/v1/webhooks/ci", push_events: "true", merge_requests_events: "true" }
+        expect(a_post("/projects/1/hooks").with(body: body)).to have_been_made
       end
 
       it "should return information about an added hook" do
@@ -284,8 +305,8 @@ describe Gitlab::Client do
     end
 
     it "should get the correct resource" do
-      body = {:url => "https://api.example.net/v1/webhooks/ci"}
-      expect(a_put("/projects/1/hooks/1").with(:body => body)).to have_been_made
+      body = { url: "https://api.example.net/v1/webhooks/ci" }
+      expect(a_put("/projects/1/hooks/1").with(body: body)).to have_been_made
     end
 
     it "should return information about an edited hook" do
@@ -295,12 +316,12 @@ describe Gitlab::Client do
 
   describe ".edit_project" do
     before do
-      stub_put("/projects/3", "project_edit").with(:query => { :name => "Gitlab-edit" })
-      @edited_project =  Gitlab.edit_project(3, :name => "Gitlab-edit")
+      stub_put("/projects/3", "project_edit").with(query: { name: "Gitlab-edit" })
+      @edited_project = Gitlab.edit_project(3, name: "Gitlab-edit")
     end
 
     it "should get the correct resource" do
-      expect(a_put("/projects/3").with(:query => { :name => "Gitlab-edit" })).to have_been_made
+      expect(a_put("/projects/3").with(query: { name: "Gitlab-edit" })).to have_been_made
     end
 
     it "should return information about an edited project" do
@@ -312,8 +333,8 @@ describe Gitlab::Client do
     context "when empty response" do
       before do
         stub_request(:delete, "#{Gitlab.endpoint}/projects/1/hooks/1").
-          with(:headers => {'PRIVATE-TOKEN' => Gitlab.private_token}).
-          to_return(:body => '')
+          with(headers: { 'PRIVATE-TOKEN' => Gitlab.private_token }).
+          to_return(body: '')
         @hook = Gitlab.delete_project_hook(1, 1)
       end
 
@@ -384,7 +405,7 @@ describe Gitlab::Client do
     end
 
     it "should return project deploy keys" do
-      expect(@deploy_keys).to be_an Array
+      expect(@deploy_keys).to be_a Gitlab::PaginatedResponse
       expect(@deploy_keys.first.id).to eq 2
       expect(@deploy_keys.first.title).to eq "Key Title"
       expect(@deploy_keys.first.key).to match(/ssh-rsa/)

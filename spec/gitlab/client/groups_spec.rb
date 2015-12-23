@@ -14,8 +14,8 @@ describe Gitlab::Client do
       expect(a_get("/groups/3")).to have_been_made
     end
 
-    it "should return an array of Groups" do
-      expect(@groups).to be_an Array
+    it "should return a paginated response of groups" do
+      expect(@groups).to be_a Gitlab::PaginatedResponse
       expect(@groups.first.path).to eq("threegroup")
     end
   end
@@ -29,7 +29,7 @@ describe Gitlab::Client do
 
       it "should get the correct resource" do
         expect(a_post("/groups").
-            with(:body => {:path => 'gitlab-path', :name => 'GitLab-Group'})).to have_been_made
+            with(body: { path: 'gitlab-path', name: 'GitLab-Group' })).to have_been_made
       end
 
       it "should return information about a created group" do
@@ -41,13 +41,13 @@ describe Gitlab::Client do
     context "with description" do
       before do
         stub_post("/groups", "group_create_with_description")
-        @group = Gitlab.create_group('GitLab-Group', 'gitlab-path', :description => 'gitlab group description')
+        @group = Gitlab.create_group('GitLab-Group', 'gitlab-path', description: 'gitlab group description')
       end
 
       it "should get the correct resource" do
         expect(a_post("/groups").
-                 with(:body => {:path => 'gitlab-path', :name => 'GitLab-Group',
-                                :description => 'gitlab group description'})).to have_been_made
+                 with(body: { path: 'gitlab-path', name: 'GitLab-Group',
+                              description: 'gitlab group description' })).to have_been_made
       end
 
       it "should return information about a created group" do
@@ -66,11 +66,11 @@ describe Gitlab::Client do
       @group = Gitlab.create_group('GitLab-Group', 'gitlab-path')
 
       stub_post("/groups/#{@group.id}/projects/#{@project.id}", "group_create")
-      @group_transfer = Gitlab.transfer_project_to_group(@group.id,@project.id)
+      @group_transfer = Gitlab.transfer_project_to_group(@group.id, @project.id)
     end
 
     it "should post to the correct resource" do
-      expect(a_post("/groups/#{@group.id}/projects/#{@project.id}").with(:body => {:id => @group.id.to_s, :project_id => @project.id.to_s})).to have_been_made
+      expect(a_post("/groups/#{@group.id}/projects/#{@project.id}").with(body: { id: @group.id.to_s, project_id: @project.id.to_s })).to have_been_made
     end
 
     it "should return information about the group" do
@@ -91,7 +91,7 @@ describe Gitlab::Client do
     end
 
     it "should return information about a group members" do
-      expect(@members).to be_an Array
+      expect(@members).to be_a Gitlab::PaginatedResponse
       expect(@members.size).to eq(2)
       expect(@members[1].name).to eq("John Smith")
     end
@@ -105,10 +105,10 @@ describe Gitlab::Client do
 
     it "should get the correct resource" do
       expect(a_post("/groups/3/members").
-        with(:body => {:user_id => '1', :access_level => '40'})).to have_been_made
+        with(body: { user_id: '1', access_level: '40' })).to have_been_made
     end
 
-    it "should return information about an added member" do
+    it "should return information about the added member" do
       expect(@member.name).to eq("John Smith")
     end
   end
@@ -128,7 +128,6 @@ describe Gitlab::Client do
     end
   end
 
-
   describe ".group_search" do
     before do
       stub_get("/groups?search=Group", "group_search")
@@ -144,6 +143,4 @@ describe Gitlab::Client do
       expect(@groups.last.id).to eq(8)
     end
   end
-
-
 end
